@@ -12,6 +12,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,7 +37,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             HDBWAndroidTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    InteractiveInputScreen(
+                    TaskScreen(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -43,8 +47,9 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun InteractiveInputScreen(modifier: Modifier = Modifier) {
-    var textInput by remember { mutableStateOf("Start typing here!") }
+fun TaskScreen(modifier: Modifier = Modifier) {
+    var taskDescription by remember { mutableStateOf("") }
+    var tasks by remember { mutableStateOf(listOf<String>()) }
 
     Column(
         modifier = modifier
@@ -53,38 +58,53 @@ fun InteractiveInputScreen(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         OutlinedTextField(
-            value = textInput,
+            value = taskDescription,
             onValueChange = { newValue ->
-                textInput = newValue
+                taskDescription = newValue
             },
-            label = { Text("Enter your text") },
+            label = { Text("Enter a new task") },
             modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            text = "Live Display: $textInput",
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
         Button(
             onClick = {
-                textInput = ""
+                if (taskDescription.isNotBlank()) {
+                    tasks = tasks + taskDescription
+                    taskDescription = ""
+                }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Clear Input")
+            Text("Add Task")
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+            items(tasks) { task ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = task)
+                    Button(onClick = { tasks = tasks - task }) {
+                        Text("Delete")
+                    }
+                }
+            }
         }
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun InteractiveInputPreview() {
+fun TaskScreenPreview() {
     HDBWAndroidTheme {
-        InteractiveInputScreen()
+        TaskScreen()
     }
 }
