@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 
 import androidx.compose.runtime.mutableStateOf
@@ -26,8 +27,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.enrique.hdbwandroid.ui.TaskViewModel
+import com.enrique.hdbwandroid.ui.TaskViewModelFactory
+import com.enrique.hdbwandroid.ui.MainViewModel
+import com.enrique.hdbwandroid.ui.MainViewModelFactory
 import com.enrique.hdbwandroid.ui.theme.HDBWAndroidTheme
 
 class MainActivity : ComponentActivity() {
@@ -37,9 +44,23 @@ class MainActivity : ComponentActivity() {
         setContent {
             HDBWAndroidTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    TaskScreen(
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                    val context = LocalContext.current
+                    val app = context.applicationContext as HDBWApplication
+                    val mainViewModel: MainViewModel = viewModel(factory = MainViewModelFactory(app.userPreferences))
+                    val name by mainViewModel.userName.collectAsState()
+
+                    if (name == null) {
+                        NameScreen(
+                            modifier = Modifier.padding(innerPadding),
+                            onNameEntered = { mainViewModel.saveUserName(it) }
+                        )
+                    } else {
+                        TaskScreen(
+                            modifier = Modifier.padding(innerPadding),
+                            userName = name!!,
+                            taskViewModel = viewModel(factory = TaskViewModelFactory(app.repository, name!!))
+                        )
+                    }
                 }
             }
         }
@@ -47,9 +68,37 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun TaskScreen(modifier: Modifier = Modifier) {
+fun NameScreen(modifier: Modifier = Modifier, onNameEntered: (String) -> Unit) {
+    var tempName by remember { mutableStateOf("") }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        OutlinedTextField(
+            value = tempName,
+            onValueChange = { tempName = it },
+            label = { Text("Enter your name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = { onNameEntered(tempName) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = tempName.isNotBlank()
+        ) {
+            Text("Continue")
+        }
+    }
+}
+
+@Composable
+fun TaskScreen(modifier: Modifier = Modifier, userName: String, taskViewModel: TaskViewModel) {
     var taskDescription by remember { mutableStateOf("") }
-    var tasks by remember { mutableStateOf(listOf<String>()) }
+    val tasks by taskViewModel.tasks.collectAsState()
 
     Column(
         modifier = modifier
@@ -57,6 +106,8 @@ fun TaskScreen(modifier: Modifier = Modifier) {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Text("Welcome, $userName!")
+        Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
             value = taskDescription,
             onValueChange = { newValue ->
@@ -71,7 +122,7 @@ fun TaskScreen(modifier: Modifier = Modifier) {
         Button(
             onClick = {
                 if (taskDescription.isNotBlank()) {
-                    tasks = tasks + taskDescription
+                    taskViewModel.addTask(taskDescription)
                     taskDescription = ""
                 }
             },
@@ -91,10 +142,14 @@ fun TaskScreen(modifier: Modifier = Modifier) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = task)
-                    Button(onClick = { tasks = tasks - task }) {
+                    Text(text = task.description)
+                    Button(onClick = { taskViewModel.deleteTask(task) }) {
                         Text("Delete")
                     }
+                    Button(onClick = { taskViewModel.modifyTask(task) }) {
+                        Text("Modify")
+                    }
+
                 }
             }
         }
@@ -103,8 +158,8 @@ fun TaskScreen(modifier: Modifier = Modifier) {
 
 @Preview(showBackground = true)
 @Composable
-fun TaskScreenPreview() {
+fun NameScreenPreview() {
     HDBWAndroidTheme {
-        TaskScreen()
+        NameScreen(onNameEntered = {})
     }
 }
